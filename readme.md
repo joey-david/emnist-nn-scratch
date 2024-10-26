@@ -20,9 +20,11 @@ This project implements a fully-connected neural network from scratch in Python.
 
 ## Project Structure
 
+```
 ├── data/                        # dataset construction
 ├── build_data.py                # Main neural network implementation
 ├── network.py                   # Main neural network implementation
+```
 
 ## Architecture and Training
 
