@@ -1,6 +1,6 @@
 # Neural Network from Scratch for Character Recognition
 
-This project implements a fully-connected neural network from scratch in Python. The network is trained on the MNIST dataset (and optionally EMNIST or other datasets) to recognize handwritten characters. Using only NumPy for numerical computations, this code demonstrates forward propagation, backpropagation, and weight updates to train a network without relying on external deep learning libraries like TensorFlow or PyTorch.
+This project implements a fully-connected neural network from scratch in Python. The network is trained on a combination of the EMNIST dataset, and a processed version of the BHMSDS dataset. Using only NumPy for numerical computations, this code demonstrates forward propagation, backpropagation, and weight updates to train a network without relying on external deep learning libraries like TensorFlow or PyTorch.
 
 ## Table of Contents
 1. [Features](#features)
