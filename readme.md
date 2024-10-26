@@ -12,9 +12,8 @@ This project implements a fully-connected neural network from scratch in Python.
 
 ## Features
 
-- Implements forward and backpropagation for a 3-layer neural network (input layer, hidden layers, and output layer).
-- Supports multiple datasets, including MNIST and EMNIST.
-- Uses Mean Squared Error (MSE) loss with softmax activation.
+- Implements forward and backpropagation for a 4-layer neural network (input layer, hidden layers, and output layer).
+- Uses Cross Entropy Loss loss with softmax activation.
 - Includes temperature scaling for the softmax layer.
 - Training and testing routines with accuracy monitoring.
 
