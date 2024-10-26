@@ -30,18 +30,18 @@ This project implements a fully-connected neural network from scratch in Python.
 
 The neural network architecture is a simple feedforward network with the following layers:
 
-    Input Layer: Receives 784-dimensional input vectors (28x28 pixel images).
-    Hidden Layers: Two hidden layers with 80 neurons each, using ReLU activation.
-    Output Layer: A softmax layer with 51 output neurons, representing the probability distribution over 51 different characters.
+- Input Layer: Receives 784-dimensional input vectors (28x28 pixel images).
+- Hidden Layers: Two hidden layers with 80 neurons each, using ReLU activation.
+- Output Layer: A softmax layer with 51 output neurons, representing the probability distribution over 51 different characters.
 
 ### Training Process
 
 The network is trained using mini-batch gradient descent with backpropagation. The training process involves:
 
-    Forward Propagation: Input data is fed through the network, calculating activations at each layer.
-    Loss Calculation: The cross-entropy loss is calculated between the predicted output and the true labels.
-    Backpropagation: Gradients of the loss with respect to the weights and biases are computed.
-    Weight Update: Weights and biases are updated using gradient descent.
+- Forward Propagation: Input data is fed through the network, calculating activations at each layer.
+- Loss Calculation: The cross-entropy loss is calculated between the predicted output and the true labels.
+- Backpropagation: Gradients of the loss with respect to the weights and biases are computed.
+- Weight Update: Weights and biases are updated using gradient descent.
 
 ## Acknowledgments
 
