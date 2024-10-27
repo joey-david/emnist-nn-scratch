@@ -3,12 +3,16 @@ import pandas as pd
 import idx2numpy as idx
 import matplotlib.pyplot as plt
 import time
+from PIL import Image, ImageDraw
 
 TEMPERATURE = 1.0
-LEARNING_RATE = 0.001
+LEARNING_RATE = 0.002
 BATCH_SIZE = 20
-EPOCH_SIZE = 5 * BATCH_SIZE
+EPOCH_SIZE = 10
+
 NUM_CLASSES  = 51
+NEURONS_L1 = 30
+NEURONS_L2 = 30
 
 #We're building a small neural network on the mnist dataset to recognize individual characters
 #as an abstraction to eventually build a full mathematical-expression evaluator.
@@ -46,13 +50,14 @@ def split_data(data, train_size):
     
 def init_weights_and_biases():   
     #weight matrices
-    W0 = np.random.randn(80, 784)
-    W1 = np.random.randn(80, 80)
-    W2 = np.random.randn(51, 80)
+    W0 = np.random.randn(NEURONS_L1, 784) * np.sqrt(2.0 / 784)
+    W1 = np.random.randn(NEURONS_L2, NEURONS_L1) * np.sqrt(2.0 / NEURONS_L1)
+    W2 = np.random.randn(NUM_CLASSES, NEURONS_L2) * np.sqrt(2.0 / NEURONS_L2)
+
     
     #bias matrices
-    b0 = np.zeros((80, 1))
-    b1 = np.zeros((80, 1))
+    b0 = np.zeros((NEURONS_L1, 1))
+    b1 = np.zeros((NEURONS_L2, 1))
     b2 = np.zeros((51, 1))
     
     return W0, W1, W2, b0, b1, b2
@@ -96,17 +101,15 @@ def back_prop(Z1, Z2, A1, A2, A3, W1, W2, input, target_output):
     dZ3 = target_output - A3 #for softmax and MSE
     #TODO
     dW2 = dZ3.dot(A2.T)
-    db2 = np.sum(dZ3)
-    
+    db2 = np.sum(dZ3, axis=1, keepdims=True)    
     #update the second layer
     dZ2 = W2.T.dot(dZ3) * reLu_derivative(Z2)
     dW1 = dZ2.dot(A1.T)
-    db1 = np.sum(dZ2)
-    
+    db1 = np.sum(dZ2, axis=1, keepdims=True)    
     #update the first layer
     dZ1 = W1.T.dot(dZ2) * reLu_derivative(Z1)
     dW0 = dZ1.dot(input.T)
-    db0 = np.sum(dZ1)
+    db0 = np.sum(dZ1, axis=1, keepdims=True)
     
     return dW0, dW1, dW2, db0, db1, db2
 
@@ -123,19 +126,13 @@ def update_parameters(W0, W1, W2, b0, b1, b2, dW0, dW1, dW2, db0, db1, db2, lear
     return W0, W1, W2, b0, b1, b2
     
     
-def batch_cost(Y, target_output, num_classes):
-    if target_output.ndim == 1:
-        one_hot = np.zeros((num_classes, target_output.size))
-        one_hot[target_output, np.arange(target_output.size)]
-    else:
-        one_hot = target_output
-    
-     #to avoid log(0)
+def batch_cost(A3, target_output, num_classes):
+    one_hot_encoded = one_hot(target_output)
     epsilon = 1e-15
-    target_output = np.clip(target_output, epsilon, 1 - epsilon)
-    
-    #Cross entropy loss
-    return -np.sum(one_hot * np.log(target_output), axis=0)
+    A3 = np.clip(A3, epsilon, 1 - epsilon)
+    loss = -np.sum(one_hot_encoded * np.log(A3)) / target_output.size
+    return loss
+
 
 
 def outputIntToAscii(n): 
@@ -194,7 +191,7 @@ def train(X_train, Y_train, epochs, batch_size):
         times.append(time.time() - start_time)
         
         # Print progress every few epochs
-        if epoch % 5 == 0:
+        if epoch % 1 == 0:
             print(f"Epoch {epoch}/{epochs}")
             print(f"Cost: {epoch_cost:.4f}")
             print(f"Accuracy: {epoch_accuracy:.2%}")
@@ -227,10 +224,11 @@ def plot_training_progress(cost, accuracies, times):
     plt.title('Training Progress')
     plt.show()
     
+
     
 def main():
     #transfer the csv to a giant matrix
-    df = load_n_lines_from_dataset(10000)
+    df = load_n_lines_from_dataset(100000)
     data = np.array(df)
     
     #define the training and testing datasets
@@ -240,6 +238,8 @@ def main():
     W0, W1, W2, b0, b1, b2, costs, accuracies, times = train(X_train, Y_train, EPOCH_SIZE, BATCH_SIZE)
     
     plot_training_progress(costs, accuracies, times)
+
+    #draw_and_predict(W0, W1, W2, b0, b1, b2)
     
 
 if __name__ == "__main__":
