@@ -1,0 +1,17 @@
+# Ignore processed dataset files
+data/processed_dataset.csv
+data/processed_dataset_cache.pkl
+
+# Ignore virtual environment directory
+.venv/
+
+# Ignore Python cache files
+__pycache__/
+
+# Ignore other common files
+*.pyc
+*.pyo
+*.pyd
+*.swp
+*.swo
+.DS_Store

@@ -3,61 +3,32 @@ import pandas as pd
 import idx2numpy as idx
 import matplotlib.pyplot as plt
 import time
-from PIL import Image, ImageDraw
+import os
+import pickle
 
+#default parameters
 TEMPERATURE = 1.0
 LEARNING_RATE = 0.002
-BATCH_SIZE = 20
-EPOCH_SIZE = 10
-
+BATCH_SIZE = 32
+EPOCH_NUMS = 50
 NUM_CLASSES  = 51
-NEURONS_L1 = 30
-NEURONS_L2 = 30
+NEURONS_L1 = 100
+NEURONS_L2 = 75
 
 #We're building a small neural network on the mnist dataset to recognize individual characters
 #as an abstraction to eventually build a full mathematical-expression evaluator.
-#this first step is done without pytorch, for the sake of understanding the base network.
-
-def load_n_lines_from_dataset(n, file_path="data/processed_dataset.csv"):
-    try:
-        #118_800 is the size of the dataset
-        #read_csv automatically skips the header row!
-        df = pd.read_csv(file_path, skiprows=lambda i: i > 0 and np.random.rand() > n / 118_800, nrows=n)
-    except FileNotFoundError:
-        print(f"File {file_path} not found.")
-        return None
-    return df
-
-
-def split_data(data, train_size):
-    np.random.shuffle(data)
+#this first step is done without pytorch, for the sake of understanding the base network. 
     
-    #number of training examples
-    n_train = int(data.shape[0] * 0.8)
-    
-    train_data = data[:n_train]
-    test_data = data[n_train:]
-    
-    #transpose to have features as columns
-    X_train = train_data[:, :-1].T / 255.0  #normalize
-    Y_train = train_data[:, -1].T
-    
-    X_test = test_data[:, :-1].T / 255.0    #normalize
-    Y_test = test_data[:, -1].T
-    
-    return (X_train, Y_train, X_test, Y_test)
-    
-    
-def init_weights_and_biases():   
+def init_weights_and_biases(neurons_l1, neurons_l2, num_classes):   
     #weight matrices
-    W0 = np.random.randn(NEURONS_L1, 784) * np.sqrt(2.0 / 784)
-    W1 = np.random.randn(NEURONS_L2, NEURONS_L1) * np.sqrt(2.0 / NEURONS_L1)
-    W2 = np.random.randn(NUM_CLASSES, NEURONS_L2) * np.sqrt(2.0 / NEURONS_L2)
+    W0 = np.random.randn(neurons_l1, 784) * np.sqrt(2.0 / 784)
+    W1 = np.random.randn(neurons_l2, neurons_l1) * np.sqrt(2.0 / neurons_l1)
+    W2 = np.random.randn(NUM_CLASSES, neurons_l2) * np.sqrt(2.0 / neurons_l2)
 
     
     #bias matrices
-    b0 = np.zeros((NEURONS_L1, 1))
-    b1 = np.zeros((NEURONS_L2, 1))
+    b0 = np.zeros((neurons_l1, 1))
+    b1 = np.zeros((neurons_l2, 1))
     b2 = np.zeros((51, 1))
     
     return W0, W1, W2, b0, b1, b2
@@ -66,12 +37,12 @@ def init_weights_and_biases():
 def reLu(x):
     return np.maximum(0, x)
 
-def softmax(array):
+def softmax(array, temp=TEMPERATURE):
     shifted_array = array - np.max(array, axis=0, keepdims=True)
-    exp_array = np.exp(shifted_array / TEMPERATURE)
+    exp_array = np.exp(shifted_array / temp)
     return exp_array / np.sum(exp_array, axis=0, keepdims=True)
 
-def forward_prop(input, W0, W1, W2, b0, b1, b2):
+def forward_prop(input, W0, W1, W2, b0, b1, b2, temp):
     Z1 = W0.dot(input) + b0
     A1 = reLu(Z1)
     
@@ -79,7 +50,7 @@ def forward_prop(input, W0, W1, W2, b0, b1, b2):
     A2 = reLu(Z2)
     
     Z3 = W2.dot(A2) + b2
-    A3 = softmax(Z3)
+    A3 = softmax(Z3, temp)
     
     #return the output nodes
     return Z1, Z2, Z3, A1, A2, A3
@@ -147,14 +118,14 @@ def outputIntToAscii(n):
     return chr(label_to_ascii[n])
 
 
-def train(X_train, Y_train, epochs, batch_size):
+def train(X_train, Y_train, l1, l2, num_classes, epochs, batch_size, temp, lr):
     #W stands for Weights, b for bias
     start_time = time.time()
-    W0, W1, W2, b0, b1, b2 = init_weights_and_biases()
+    W0, W1, W2, b0, b1, b2 = init_weights_and_biases(l1, l2, num_classes)
     costs = []
     accuracies = []
     times = []
-    m = X_train.shape[1]  # number of training examples
+    m = X_train.shape[1]  #number of training examples
     
     for epoch in range(epochs):
         epoch_cost = 0
@@ -167,10 +138,10 @@ def train(X_train, Y_train, epochs, batch_size):
             Y_batch = Y_train[i:end]
             
             #forward propagation
-            Z1, Z2, Z3, A1, A2, A3 = forward_prop(X_batch, W0, W1, W2, b0, b1, b2)
+            Z1, Z2, Z3, A1, A2, A3 = forward_prop(X_batch, W0, W1, W2, b0, b1, b2, temp)
             
             #cost computation
-            epoch_cost += batch_cost(A3, Y_batch, NUM_CLASSES)
+            epoch_cost += batch_cost(A3, Y_batch, num_classes)
             
             #compute accuracy
             predictions = np.argmax(A3, axis=0)
@@ -182,65 +153,105 @@ def train(X_train, Y_train, epochs, batch_size):
             #update parameters
             W0, W1, W2, b0, b1, b2 = update_parameters(W0, W1, W2, b0, b1, b2, 
                                                        dW0, dW1, dW2, db0, db1, db2, 
-                                                       LEARNING_RATE)
-            
+                                                       lr)
+
         epoch_cost = epoch_cost / m
         epoch_accuracy = correct_predictions / m
         costs.append(epoch_cost)
         accuracies.append(epoch_accuracy)
         times.append(time.time() - start_time)
         
+        # Check for early stopping
+        if epoch >= 5:
+            recent_accuracies = accuracies[-5:]
+            if max(recent_accuracies) - min(recent_accuracies) < 0.004 and accuracies[-1] < accuracies[-5]:
+                print("Early stopping triggered.")
+                break
+        
         # Print progress every few epochs
         if epoch % 1 == 0:
-            print(f"Epoch {epoch}/{epochs}")
+            print(f"Epoch {epoch+1}/{epochs}")
             print(f"Cost: {epoch_cost:.4f}")
             print(f"Accuracy: {epoch_accuracy:.2%}")
             
             # Print a few predictions vs actual
             test_idx = np.random.randint(0, m)
-            _, _, _, _, _, A3 = forward_prop(X_train[:, test_idx:test_idx+1], W0, W1, W2, b0, b1, b2)
+            _, _, _, _, _, A3 = forward_prop(X_train[:, test_idx:test_idx+1], W0, W1, W2, b0, b1, b2, temp)
             pred = outputIntToAscii(np.argmax(A3))
             actual = outputIntToAscii(Y_train[test_idx])
             print(f"Sample prediction: {pred}, Actual: {actual}\n")
     
     return W0, W1, W2, b0, b1, b2, costs, accuracies, times
-
-def plot_training_progress(cost, accuracies, times):
-    fig, ax1 = plt.subplots()
-
-    color = 'tab:red'
-    ax1.set_xlabel('Time (s)')
-    ax1.set_ylabel('Cost', color=color)
-    ax1.plot(times, cost, color=color)
-    ax1.tick_params(axis='y', labelcolor=color)
-
-    ax2 = ax1.twinx()
-    color = 'tab:blue'
-    ax2.set_ylabel('Accuracy', color=color)
-    ax2.plot(times, accuracies, color=color)
-    ax2.tick_params(axis='y', labelcolor=color)
-
-    fig.tight_layout()
-    plt.title('Training Progress')
-    plt.show()
     
-
     
-def main():
+def load_n_lines_from_dataset(n, file_path="data/processed_dataset.csv"):
+    try:
+        #137_600 is the size of the dataset
+        #read_csv automatically skips the header row!
+        df = pd.read_csv(file_path, skiprows=lambda i: i > 0 and np.random.rand() > n / 137_600, nrows=n)
+    except FileNotFoundError:
+        print(f"File {file_path} not found.")
+        return None
+    return df
+
+
+def split_data(data, train_size):
+    np.random.shuffle(data)
+    
+    #number of training examples
+    n_train = int(data.shape[0] * train_size)
+    
+    train_data = data[:n_train]
+    test_data = data[n_train:]
+    
+    #transpose to have features as columns
+    X_train = train_data[:, 1:].T / 255.0  #normalize
+    Y_train = train_data[:, 0].T
+    
+    X_test = test_data[:, 1:].T / 255.0    #normalize
+    Y_test = test_data[:, 0].T
+    
+    return (X_train, Y_train, X_test, Y_test)
+
+
+def main(train_test_split, temp, lr, bs, epochs, num_classes, l1, l2):
+    
     #transfer the csv to a giant matrix
-    df = load_n_lines_from_dataset(100000)
+    cache_file = "data/processed_dataset_cache.pkl"
+
+    if os.path.exists(cache_file):
+        with open(cache_file, "rb") as f:
+            df = pickle.load(f)
+    else:
+        df = load_n_lines_from_dataset(137_600)
+        with open(cache_file, "wb") as f:
+            pickle.dump(df, f)
     data = np.array(df)
     
     #define the training and testing datasets
-    X_train, Y_train, X_test, Y_test = split_data(data, 0.9)
+    X_train, Y_train, X_test, Y_test = split_data(data, train_test_split)
     
     #train the model
-    W0, W1, W2, b0, b1, b2, costs, accuracies, times = train(X_train, Y_train, EPOCH_SIZE, BATCH_SIZE)
+    W0, W1, W2, b0, b1, b2, costs, tr_acc, times = train(X_train,
+                                                             Y_train,
+                                                             l1,
+                                                             l2,
+                                                             num_classes,
+                                                             epochs,
+                                                             bs,
+                                                             temp,
+                                                             lr
+                                                             )
     
-    plot_training_progress(costs, accuracies, times)
-
-    #draw_and_predict(W0, W1, W2, b0, b1, b2)
+    # Test the model on the test set
+    _, _, _, _, _, A3_test = forward_prop(X_test, W0, W1, W2, b0, b1, b2, temp)
+    test_predictions = np.argmax(A3_test, axis=0)
+    te_acc = np.sum(test_predictions == Y_test) / Y_test.size
+    
+    print(f"Test Accuracy: {te_acc:.2%}")
+    
+    return costs, tr_acc, te_acc, times, W0, W1, W2, b0, b1, b2
     
 
 if __name__ == "__main__":
-    main()
+    main(0.8, TEMPERATURE, LEARNING_RATE, BATCH_SIZE, EPOCH_NUMS, NUM_CLASSES, NEURONS_L1, NEURONS_L2)
