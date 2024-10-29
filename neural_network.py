@@ -7,13 +7,13 @@ import os
 import pickle
 
 #default parameters
-TEMPERATURE = 1.0
-LEARNING_RATE = 0.002
+SPLIT = 0.95
+LEARNING_RATE = 0.0005
 BATCH_SIZE = 32
-EPOCH_NUMS = 50
+EPOCH_NUMS = 70
 NUM_CLASSES  = 51
-NEURONS_L1 = 100
-NEURONS_L2 = 75
+NEURONS_L1 = 256
+NEURONS_L2 = 128
 
 #We're building a small neural network on the mnist dataset to recognize individual characters
 #as an abstraction to eventually build a full mathematical-expression evaluator.
@@ -37,12 +37,13 @@ def init_weights_and_biases(neurons_l1, neurons_l2, num_classes):
 def reLu(x):
     return np.maximum(0, x)
 
-def softmax(array, temp=TEMPERATURE):
+#no need to implement temperature, as we always want the best prediction
+def softmax(array):
     shifted_array = array - np.max(array, axis=0, keepdims=True)
-    exp_array = np.exp(shifted_array / temp)
+    exp_array = np.exp(shifted_array)
     return exp_array / np.sum(exp_array, axis=0, keepdims=True)
 
-def forward_prop(input, W0, W1, W2, b0, b1, b2, temp):
+def forward_prop(input, W0, W1, W2, b0, b1, b2):
     Z1 = W0.dot(input) + b0
     A1 = reLu(Z1)
     
@@ -50,7 +51,7 @@ def forward_prop(input, W0, W1, W2, b0, b1, b2, temp):
     A2 = reLu(Z2)
     
     Z3 = W2.dot(A2) + b2
-    A3 = softmax(Z3, temp)
+    A3 = softmax(Z3)
     
     #return the output nodes
     return Z1, Z2, Z3, A1, A2, A3
@@ -118,7 +119,7 @@ def outputIntToAscii(n):
     return chr(label_to_ascii[n])
 
 
-def train(X_train, Y_train, l1, l2, num_classes, epochs, batch_size, temp, lr):
+def train(X_train, Y_train, l1, l2, num_classes, epochs, batch_size, lr):
     #W stands for Weights, b for bias
     start_time = time.time()
     W0, W1, W2, b0, b1, b2 = init_weights_and_biases(l1, l2, num_classes)
@@ -138,7 +139,7 @@ def train(X_train, Y_train, l1, l2, num_classes, epochs, batch_size, temp, lr):
             Y_batch = Y_train[i:end]
             
             #forward propagation
-            Z1, Z2, Z3, A1, A2, A3 = forward_prop(X_batch, W0, W1, W2, b0, b1, b2, temp)
+            Z1, Z2, Z3, A1, A2, A3 = forward_prop(X_batch, W0, W1, W2, b0, b1, b2)
             
             #cost computation
             epoch_cost += batch_cost(A3, Y_batch, num_classes)
@@ -164,19 +165,20 @@ def train(X_train, Y_train, l1, l2, num_classes, epochs, batch_size, temp, lr):
         # Check for early stopping
         if epoch >= 5:
             recent_accuracies = accuracies[-5:]
-            if max(recent_accuracies) - min(recent_accuracies) < 0.004 and accuracies[-1] < accuracies[-5]:
+            if max(recent_accuracies) - min(recent_accuracies) < 0.005 and accuracies[-1] < accuracies[-5]:
                 print("Early stopping triggered.")
                 break
         
+        print('|', end='', flush=True)
         # Print progress every few epochs
-        if epoch % 1 == 0:
+        if (epoch + 1) % epochs == 0:
+            print('\\')
             print(f"Epoch {epoch+1}/{epochs}")
             print(f"Cost: {epoch_cost:.4f}")
-            print(f"Accuracy: {epoch_accuracy:.2%}")
-            
+            print(f"Training Accuracy: {epoch_accuracy:.2%}")
             # Print a few predictions vs actual
             test_idx = np.random.randint(0, m)
-            _, _, _, _, _, A3 = forward_prop(X_train[:, test_idx:test_idx+1], W0, W1, W2, b0, b1, b2, temp)
+            _, _, _, _, _, A3 = forward_prop(X_train[:, test_idx:test_idx+1], W0, W1, W2, b0, b1, b2)
             pred = outputIntToAscii(np.argmax(A3))
             actual = outputIntToAscii(Y_train[test_idx])
             print(f"Sample prediction: {pred}, Actual: {actual}\n")
@@ -213,8 +215,12 @@ def split_data(data, train_size):
     
     return (X_train, Y_train, X_test, Y_test)
 
+def save_weights_and_biases(W0, W1, W2, b0, b1, b2, split, lr, bs, en, nc, nl1, nl2):
+    os.makedirs('models', exist_ok=True)
+    filename = f"models/weights_biases_S{split}_LR{lr}_BS{bs}_E{en}_NC{nc}_L1{nl1}_L2{nl2}.npz"
+    np.savez(filename, W0=W0, W1=W1, W2=W2, b0=b0, b1=b1, b2=b2)
 
-def main(train_test_split, temp, lr, bs, epochs, num_classes, l1, l2):
+def main(train_test_split, lr, bs, epochs, num_classes, l1, l2):
     
     #transfer the csv to a giant matrix
     cache_file = "data/processed_dataset_cache.pkl"
@@ -239,19 +245,21 @@ def main(train_test_split, temp, lr, bs, epochs, num_classes, l1, l2):
                                                              num_classes,
                                                              epochs,
                                                              bs,
-                                                             temp,
                                                              lr
                                                              )
     
     # Test the model on the test set
-    _, _, _, _, _, A3_test = forward_prop(X_test, W0, W1, W2, b0, b1, b2, temp)
+    _, _, _, _, _, A3_test = forward_prop(X_test, W0, W1, W2, b0, b1, b2)
     test_predictions = np.argmax(A3_test, axis=0)
     te_acc = np.sum(test_predictions == Y_test) / Y_test.size
     
     print(f"Test Accuracy: {te_acc:.2%}")
+    print('\n')
+    
     
     return costs, tr_acc, te_acc, times, W0, W1, W2, b0, b1, b2
     
 
 if __name__ == "__main__":
-    main(0.8, TEMPERATURE, LEARNING_RATE, BATCH_SIZE, EPOCH_NUMS, NUM_CLASSES, NEURONS_L1, NEURONS_L2)
+    costs, tr_acc, te_acc, times, W0, W1, W2, b0, b1, b2 = main(SPLIT, LEARNING_RATE, BATCH_SIZE, EPOCH_NUMS, NUM_CLASSES, NEURONS_L1, NEURONS_L2)
+    save_weights_and_biases(W0, W1, W2, b0, b1, b2, SPLIT, LEARNING_RATE, BATCH_SIZE, EPOCH_NUMS, NUM_CLASSES, NEURONS_L1, NEURONS_L2)
