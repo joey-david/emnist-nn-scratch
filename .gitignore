@@ -4,8 +4,11 @@ data/processed_dataset_cache.pkl
 
 # Ignore virtual environment directory
 .venv/
+music/.venv
+music/dataset
 
 # Ignore Python cache files
+music/__pycache__
 __pycache__/
 
 # Ignore other common files
