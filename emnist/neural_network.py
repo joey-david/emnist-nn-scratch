@@ -1,10 +1,15 @@
-import numpy as np
-import pandas as pd
+from pathlib import Path
+import time
+import pickle
+
 import idx2numpy as idx
 import matplotlib.pyplot as plt
-import time
-import os
-import pickle
+import numpy as np
+import pandas as pd
+
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR / "data"
+MODELS_DIR = BASE_DIR / "models"
 
 #default parameters
 SPLIT = 0.95
@@ -186,7 +191,7 @@ def train(X_train, Y_train, l1, l2, num_classes, epochs, batch_size, lr):
     return W0, W1, W2, b0, b1, b2, costs, accuracies, times
     
     
-def load_n_lines_from_dataset(n, file_path="data/processed_dataset.csv"):
+def load_n_lines_from_dataset(n, file_path: Path = DATA_DIR / "processed_dataset.csv"):
     try:
         #137_600 is the size of the dataset
         #read_csv automatically skips the header row!
@@ -216,20 +221,21 @@ def split_data(data, train_size):
     return (X_train, Y_train, X_test, Y_test)
 
 def save_weights_and_biases(W0, W1, W2, b0, b1, b2, split, lr, bs, en, nc, nl1, nl2):
-    os.makedirs('models', exist_ok=True)
-    filename = f"models/weights_biases_S{split}_LR{lr}_BS{bs}_E{en}_NC{nc}_L1{nl1}_L2{nl2}.npz"
-    np.savez(filename, W0=W0, W1=W1, W2=W2, b0=b0, b1=b1, b2=b2)
+    MODELS_DIR.mkdir(parents=True, exist_ok=True)
+    filename = MODELS_DIR / f"weights_biases_S{split}_LR{lr}_BS{bs}_E{en}_NC{nc}_L1{nl1}_L2{nl2}.npz"
+    np.savez(str(filename), W0=W0, W1=W1, W2=W2, b0=b0, b1=b1, b2=b2)
 
 def main(train_test_split, lr, bs, epochs, num_classes, l1, l2):
     
     #transfer the csv to a giant matrix
-    cache_file = "data/processed_dataset_cache.pkl"
+    cache_file = DATA_DIR / "processed_dataset_cache.pkl"
 
-    if os.path.exists(cache_file):
+    if cache_file.exists():
         with open(cache_file, "rb") as f:
             df = pickle.load(f)
     else:
         df = load_n_lines_from_dataset(137_600)
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
         with open(cache_file, "wb") as f:
             pickle.dump(df, f)
     data = np.array(df)

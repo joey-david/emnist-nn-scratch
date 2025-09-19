@@ -1,8 +1,13 @@
-import numpy as np
-import matplotlib.pyplot as plt
-import os
 from datetime import datetime
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
+
 from neural_network import main as nn_main
+
+BASE_DIR = Path(__file__).resolve().parent
+MODELS_DIR = BASE_DIR / "models"
 
 def plot_training_progress(costs, tr_accs, test_accs, times, hyperparameter, value):
     """
@@ -138,12 +143,13 @@ def compile_graphs(groups):
 
     main_fig.suptitle('Neural Network Hyperparameter Analysis', fontsize=16, y=0.98)
     timestamp = datetime.now().strftime('%Y%m%d_%H%M')
-    main_fig.savefig(f'hyperparameter_analysis_{timestamp}.png', dpi=300, bbox_inches='tight')
+    output_path = BASE_DIR / f'hyperparameter_analysis_{timestamp}.png'
+    main_fig.savefig(output_path, dpi=300, bbox_inches='tight')
 
 def save_weights_and_biases(W0, W1, W2, b0, b1, b2, split, lr, bs, en, nc, nl1, nl2):
-    os.makedirs('models', exist_ok=True)
-    filename = f"models/weights_biases_S{split}_LR{lr}_BS{bs}_E{en}_NC{nc}_L1{nl1}_L2{nl2}.npz"
-    np.savez(filename, W0=W0, W1=W1, W2=W2, b0=b0, b1=b1, b2=b2)
+    MODELS_DIR.mkdir(parents=True, exist_ok=True)
+    filename = MODELS_DIR / f"weights_biases_S{split}_LR{lr}_BS{bs}_E{en}_NC{nc}_L1{nl1}_L2{nl2}.npz"
+    np.savez(str(filename), W0=W0, W1=W1, W2=W2, b0=b0, b1=b1, b2=b2)
 
 def main():
     '''Test the neural network while varying hyperparameters.'''
